@@ -97,7 +97,7 @@ class FlightSearchParameters extends Component {
       const details = flights.map(flight => {
         return {
           cost: flight.FareDescription.PaxFareDetails[0].OtherInfo.GrossAmount,
-          totalDuration: [parseInt(flight.ElapsedTime[0]), parseInt(flight.ElapsedTime[1])],
+          totalDuration: [parseInt(flight.ElapsedTime[0], 10), parseInt(flight.ElapsedTime[1], 10)],
           flights: flight.FlightDetails.map(flightDetails => {
             return {
               departureDateTime: flightDetails.DepartureDateTime,
@@ -206,7 +206,7 @@ class FlightSearchParameters extends Component {
         <div style={{textAlign: 'center'}}>
           <hr style={{opacity: 0.5}} />
           {!this.props.searching && !this.props.bookingDetails && <Button style={{...createFlightButtonStyle, ...{marginRight: '20px'}}} bsStyle='danger' onClick={() => this.handleFlightSearch()}>SEARCH</Button>}
-          {!this.props.searching && !this.props.bookingDetails && <Button style={createFlightButtonStyle} bsStyle='danger' onClick={() => this.props.closeCreateForm()}>CANCEL</Button>}
+          {!this.props.searching && !this.props.bookingDetails && <Button style={createFlightButtonStyle} bsStyle='danger' onClick={() => this.props.closeForm()}>CANCEL</Button>}
         </div>
       </div>
     )

@@ -3,7 +3,7 @@ import { gql } from 'react-apollo'
 export const createFood = gql`
   mutation createFood(
     $ItineraryId: ID!,
-    $loadSequence: Int
+    $loadSequence: Int,
     $startDay: Int!,
     $endDay: Int!,
     $startTime: Int,
@@ -53,10 +53,11 @@ export const createFood = gql`
 export const updateFood = gql`
   mutation updateFood(
     $id: ID!,
-    $startDay: Int!,
-    $endDay: Int!,
+    $startDay: Int,
+    $endDay: Int,
     $startTime: Int,
     $endTime: Int,
+    $loadSequence: Int,
     $googlePlaceData: googlePlaceData,
     $locationAlias: String,
     $description: String,
@@ -67,6 +68,8 @@ export const updateFood = gql`
     $bookedThrough: String,
     $bookingConfirmation: String,
     $backgroundImage: String,
+    $addAttachments: [attachmentInput],
+    $removeAttachments: [ID],
     $openingHoursValidation: String,
     $allDayEvent: Boolean
   ) {
@@ -76,6 +79,7 @@ export const updateFood = gql`
       endDay: $endDay,
       startTime: $startTime,
       endTime: $endTime,
+      loadSequence: $loadSequence,
       googlePlaceData: $googlePlaceData,
       locationAlias: $locationAlias,
       description: $description,
@@ -86,6 +90,8 @@ export const updateFood = gql`
       bookedThrough: $bookedThrough,
       bookingConfirmation: $bookingConfirmation,
       backgroundImage: $backgroundImage,
+      addAttachments: $addAttachments,
+      removeAttachments: $removeAttachments,
       openingHoursValidation: $openingHoursValidation,
       allDayEvent: $allDayEvent
     ) {

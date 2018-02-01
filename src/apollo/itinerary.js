@@ -5,6 +5,7 @@ export const queryItinerary = gql`
     findItinerary(id: $id){
       id
       name
+      description
       countries {
         id
         name
@@ -26,8 +27,26 @@ export const queryItinerary = gql`
           endTime
           location {
             id
+            placeId
             name
+            address
+            telephone
+            latitude
+            longitude
+            utcOffset
+            openingHours {
+              open {
+                day
+                time
+              }
+              close {
+                day
+                time
+              }
+            }
+            openingHoursText
           }
+          locationAlias
           startDay
           endDay
           loadSequence
@@ -48,6 +67,300 @@ export const queryItinerary = gql`
           openingHoursValidation
           allDayEvent
         }
+        Food {
+          id
+          description
+          location {
+            id
+            placeId
+            name
+            address
+            telephone
+            latitude
+            longitude
+            utcOffset
+            openingHours {
+              open {
+                day
+                time
+              }
+              close {
+                day
+                time
+              }
+            }
+            openingHoursText
+          }
+          locationAlias
+          startDay
+          endDay
+          startTime
+          endTime
+          loadSequence
+          currency
+          cost
+          bookedThrough
+          bookingConfirmation
+          bookingStatus
+          notes
+          attachments {
+            id
+            fileName
+            fileAlias
+            fileType
+            fileSize
+          }
+          backgroundImage
+          openingHoursValidation
+          allDayEvent
+        }
+        Lodging {
+          id
+          description
+          location {
+            id
+            placeId
+            name
+            address
+            telephone
+            latitude
+            longitude
+            utcOffset
+            openingHours {
+              open {
+                day
+                time
+              }
+              close {
+                day
+                time
+              }
+            }
+            openingHoursText
+          }
+          locationAlias
+          startDay
+          endDay
+          startTime
+          endTime
+          startLoadSequence
+          endLoadSequence
+          currency
+          cost
+          bookedThrough
+          bookingConfirmation
+          bookingStatus
+          notes
+          attachments {
+            id
+            fileName
+            fileAlias
+            fileType
+            fileSize
+          }
+          backgroundImage
+        }
+        LandTransport {
+          id
+          departureLocation {
+            id
+            placeId
+            name
+            address
+            telephone
+            latitude
+            longitude
+            utcOffset
+            openingHours {
+              open {
+                day
+                time
+              }
+              close {
+                day
+                time
+              }
+            }
+            openingHoursText
+          }
+          arrivalLocation {
+            id
+            placeId
+            name
+            address
+            telephone
+            latitude
+            longitude
+            utcOffset
+            openingHours {
+              open {
+                day
+                time
+              }
+              close {
+                day
+                time
+              }
+            }
+            openingHoursText
+          }
+          departureLocationAlias
+          arrivalLocationAlias
+          startDay
+          startTime
+          endDay
+          endTime
+          startLoadSequence
+          endLoadSequence
+          currency
+          cost
+          bookedThrough
+          bookingConfirmation
+          bookingStatus
+          notes
+          attachments {
+            id
+            fileName
+            fileAlias
+            fileType
+            fileSize
+          }
+          backgroundImage
+        }
+        SeaTransport {
+          id
+          departureLocation {
+            id
+            placeId
+            name
+            address
+            telephone
+            latitude
+            longitude
+            utcOffset
+            openingHours {
+              open {
+                day
+                time
+              }
+              close {
+                day
+                time
+              }
+            }
+            openingHoursText
+          }
+          arrivalLocation {
+            id
+            placeId
+            name
+            address
+            telephone
+            latitude
+            longitude
+            utcOffset
+            openingHours {
+              open {
+                day
+                time
+              }
+              close {
+                day
+                time
+              }
+            }
+            openingHoursText
+          }
+          departureLocationAlias
+          arrivalLocationAlias
+          startDay
+          startTime
+          endDay
+          endTime
+          startLoadSequence
+          endLoadSequence
+          currency
+          cost
+          bookedThrough
+          bookingConfirmation
+          bookingStatus
+          notes
+          attachments {
+            id
+            fileName
+            fileAlias
+            fileType
+            fileSize
+          }
+          backgroundImage
+        }
+        Train {
+          id
+          departureLocation {
+            id
+            placeId
+            name
+            address
+            telephone
+            latitude
+            longitude
+            utcOffset
+            openingHours {
+              open {
+                day
+                time
+              }
+              close {
+                day
+                time
+              }
+            }
+            openingHoursText
+          }
+          arrivalLocation {
+            id
+            placeId
+            name
+            address
+            telephone
+            latitude
+            longitude
+            utcOffset
+            openingHours {
+              open {
+                day
+                time
+              }
+              close {
+                day
+                time
+              }
+            }
+            openingHoursText
+          }
+          departureLocationAlias
+          arrivalLocationAlias
+          startDay
+          startTime
+          endDay
+          endTime
+          startLoadSequence
+          endLoadSequence
+          currency
+          cost
+          bookedThrough
+          bookingConfirmation
+          bookingStatus
+          notes
+          attachments {
+            id
+            fileName
+            fileAlias
+            fileType
+            fileSize
+          }
+          backgroundImage
+        }
         Flight {
           FlightInstance {
             id
@@ -57,11 +370,44 @@ export const queryItinerary = gql`
             airlineName
             departureLocation {
               id
+              placeId
               name
+              address
+              telephone
+              latitude
+              longitude
+              utcOffset
+              openingHours {
+                open {
+                  day
+                  time
+                }
+                close {
+                  day
+                  time
+                }
+              }
+              openingHoursText
             }
             arrivalLocation {
               id
+              placeId
               name
+              address
+              telephone
+              latitude
+              longitude
+              utcOffset
+              openingHours {
+                open {
+                  day
+                  time
+                }
+                close {
+                  day
+                }
+              }
+              openingHoursText
             }
             departureTerminal
             arrivalTerminal
@@ -98,156 +444,6 @@ export const queryItinerary = gql`
             }
           }
         }
-        Lodging {
-          id
-          description
-          location {
-            id
-            name
-          }
-          startDay
-          endDay
-          startTime
-          endTime
-          startLoadSequence
-          endLoadSequence
-          currency
-          cost
-          bookedThrough
-          bookingConfirmation
-          bookingStatus
-          notes
-          attachments {
-            id
-            fileName
-            fileAlias
-            fileType
-            fileSize
-          }
-          backgroundImage
-        }
-        Food {
-          id
-          description
-          location {
-            id
-            name
-          }
-          startDay
-          endDay
-          startTime
-          endTime
-          loadSequence
-          currency
-          cost
-          bookedThrough
-          bookingConfirmation
-          bookingStatus
-          notes
-          attachments {
-            id
-            fileName
-            fileAlias
-            fileType
-            fileSize
-          }
-          backgroundImage
-          openingHoursValidation
-          allDayEvent
-        }
-        LandTransport {
-          id
-          departureLocation {
-            id
-            name
-          }
-          arrivalLocation {
-            id
-            name
-          }
-          startDay
-          startTime
-          endDay
-          endTime
-          startLoadSequence
-          endLoadSequence
-          currency
-          cost
-          bookedThrough
-          bookingConfirmation
-          bookingStatus
-          notes
-          attachments {
-            id
-            fileName
-            fileAlias
-            fileType
-            fileSize
-          }
-          backgroundImage
-        }
-        SeaTransport {
-          id
-          departureLocation {
-            id
-            name
-          }
-          arrivalLocation {
-            id
-            name
-          }
-          startDay
-          startTime
-          endDay
-          endTime
-          startLoadSequence
-          endLoadSequence
-          currency
-          cost
-          bookedThrough
-          bookingConfirmation
-          bookingStatus
-          notes
-          attachments {
-            id
-            fileName
-            fileAlias
-            fileType
-            fileSize
-          }
-          backgroundImage
-        }
-        Train {
-          id
-          departureLocation {
-            id
-            name
-          }
-          arrivalLocation {
-            id
-            name
-          }
-          startDay
-          startTime
-          endDay
-          endTime
-          startLoadSequence
-          endLoadSequence
-          currency
-          cost
-          bookedThrough
-          bookingConfirmation
-          bookingStatus
-          notes
-          attachments {
-            id
-            fileName
-            fileAlias
-            fileType
-            fileSize
-          }
-          backgroundImage
-        }
       }
     }
   }`
@@ -259,9 +455,6 @@ export const allItineraries = gql`
       name
       days
       startDate
-      pax
-      travelInsurance
-      budget
       countries {
         id
         name
@@ -287,9 +480,7 @@ export const itinerariesByUser = gql`
       name
       days
       startDate
-      pax
-      travelInsurance
-      budget
+      description
       countries {
         id
         name
@@ -314,28 +505,22 @@ export const createItinerary = gql`
     $CountryId: Int,
     $name: String!,
     $days: Int!,
-    $startDate: Int,
-    $pax: Int,
-    $travelInsurance: String,
-    $budget: Int
+    $startDate: Int
+    $description: String
   ) {
     createItinerary(
       UserId:$UserId,
       CountryId: $CountryId,
       name: $name,
       days: $days,
-      startDate: $startDate,
-      pax: $pax,
-      travelInsurance: $travelInsurance,
-      budget: $budget
+      startDate: $startDate
+      description: $description
     ) {
       id
       name
       days
       startDate
-      pax
-      travelInsurance
-      budget
+      description
     }
   }`
 
@@ -344,28 +529,22 @@ export const updateItineraryDetails = gql`
     $id: ID!,
     $name: String,
     $startDate: Int,
-    $pax: Int,
-    $travelInsurance: String,
-    $budget: Int,
-    $days: Int
+    $days: Int,
+    $description: String
   ) {
     updateItineraryDetails(
       id: $id,
       name: $name,
       startDate: $startDate,
-      pax: $pax,
-      travelInsurance: $travelInsurance,
-      budget: $budget,
-      days: $days
+      days: $days,
+      description: $description
     ) {
       id
       name
       days
       startDate
       days
-      pax
-      travelInsurance
-      budget
+      description
     }
   }`
 

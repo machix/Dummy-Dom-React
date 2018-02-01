@@ -1,7 +1,7 @@
 import React, { Component } from 'react'
 import { graphql, compose } from 'react-apollo'
 import { connect } from 'react-redux'
-import Radium, { Style } from 'radium'
+import Radium from 'radium'
 import moment from 'moment'
 import { retrieveCloudStorageToken } from '../../actions/cloudStorageActions'
 import { Button } from 'react-bootstrap'
@@ -21,10 +21,13 @@ import { createFlightBooking } from '../../apollo/flight'
 import { changingLoadSequence } from '../../apollo/changingLoadSequence'
 import { queryItinerary, updateItineraryDetails } from '../../apollo/itinerary'
 
-import { retrieveToken, removeAllAttachments } from '../../helpers/cloudStorage'
-import countriesToCurrencyList from '../../helpers/countriesToCurrencyList'
-import newEventLoadSeqAssignment from '../../helpers/newEventLoadSeqAssignment'
-import newEventTimelineValidation from '../../helpers/newEventTimelineValidation'
+import { removeAllAttachments } from '../../helpers/cloudStorage'
+import { allCurrenciesList } from '../../helpers/countriesToCurrencyList'
+import newEventLoadSeqAssignment from
+ '../../helpers/newEventLoadSeqAssignment'
+// import newEventTimelineValidation from '../../helpers/newEventTimelineValidation'
+
+import { validateIntervals } from '../../helpers/intervalValidationTesting'
 
 const defaultBackground = `${process.env.REACT_APP_CLOUD_PUBLIC_URI}flightDefaultBackground.jpg`
 
@@ -94,7 +97,7 @@ class CreateFlightForm extends Component {
     var bookingStatus = this.state.bookingConfirmation ? true : false
 
     var newFlight = {
-      ItineraryId: parseInt(this.state.ItineraryId),
+      ItineraryId: parseInt(this.state.ItineraryId, 10),
       paxAdults: this.state.paxAdults,
       paxChildren: this.state.paxChildren,
       paxInfants: this.state.paxInfants,
@@ -119,12 +122,20 @@ class CreateFlightForm extends Component {
     }
     // console.log('newFlight', newFlight)
 
-    // VALIDATE PLANNER TIMINGS
-    var output = newEventTimelineValidation(this.props.events, 'Flight', newFlight.flightInstances)
-    console.log('output', output)
-    if (!output.isValid) {
-      window.alert(`some flight instances hv timing clash`)
-      console.log('ERROR ROWS', output.errorRows)
+    // REWRITTEN FUNCTION TO VALIDATE
+    var eventObjArr = newFlight.flightInstances.map(e => {
+      return {
+        startDay: e.startDay,
+        endDay: e.endDay,
+        startTime: e.startTime,
+        endTime: e.endTime
+      }
+    })
+    var isError = validateIntervals(this.props.events, eventObjArr)
+    console.log('isError', isError)
+
+    if (isError) {
+      window.alert('timing clashes detected')
     }
 
     var helperOutput = newEventLoadSeqAssignment(this.props.events, 'Flight', newFlight.flightInstances)
@@ -138,6 +149,7 @@ class CreateFlightForm extends Component {
 
     newFlight.flightInstances = helperOutput.newEvent
 
+    console.log('BEFORE SUBMIT', newFlight)
     this.props.createFlightBooking({
       variables: newFlight,
       refetchQueries: [{
@@ -150,7 +162,7 @@ class CreateFlightForm extends Component {
     this.props.toggleCreateEventType()
   }
 
-  closeCreateFlight () {
+  closeForm () {
     removeAllAttachments(this.state.attachments, this.apiToken)
     this.resetState()
     this.props.toggleCreateEventType()
@@ -178,11 +190,16 @@ class CreateFlightForm extends Component {
   }
 
   removeUpload (index) {
+    var fileToRemove = this.state.attachments[index]
+    var fileNameToRemove = fileToRemove.fileName
+    if (this.state.backgroundImage.indexOf(fileNameToRemove) > -1) {
+      this.setState({backgroundImage: defaultBackground})
+    }
+
     var files = this.state.attachments
     var newFilesArr = (files.slice(0, index)).concat(files.slice(index + 1))
 
     this.setState({attachments: newFilesArr})
-    this.setState({backgroundImage: defaultBackground})
   }
 
   setBackground (previewUrl) {
@@ -248,7 +265,8 @@ class CreateFlightForm extends Component {
       this.apiToken = obj.token
     })
 
-    var currencyList = countriesToCurrencyList(this.props.countries)
+    // AIRHOB USING USD. FOR FUTURE USE
+    var currencyList = allCurrenciesList()
     this.setState({currencyList: currencyList})
     this.setState({currency: currencyList[0]})
   }
@@ -263,7 +281,7 @@ class CreateFlightForm extends Component {
           <div style={createEventFormLeftPanelStyle(this.state.backgroundImage, 'flight')}>
             <div style={greyTintStyle} />
             <div style={eventDescContainerStyle}>
-              <FlightSearchParameters searchClicked={this.state.searchClicked} bookingDetails={this.state.bookingDetails} searching={this.state.searching} dates={this.props.dates} date={this.props.date} handleSearch={(flights, tripType, adults, children, infants, classCode) => this.handleSearch(flights, tripType, adults, children, infants, classCode)} closeCreateForm={() => this.closeCreateFlight()} />
+              <FlightSearchParameters searchClicked={this.state.searchClicked} bookingDetails={this.state.bookingDetails} searching={this.state.searching} dates={this.props.dates} date={this.props.date} handleSearch={(flights, tripType, adults, children, infants, classCode) => this.handleSearch(flights, tripType, adults, children, infants, classCode)} closeForm={() => this.closeForm()} />
               {(this.state.searching || (!this.state.searching && this.state.bookingDetails)) && <FlightSearchDetailsContainer searching={this.state.searching} flights={this.state.flights} selected={this.state.selected} tripType={this.state.tripType} page={this.state.flightDetailsPage} />}
             </div>
           </div>
@@ -272,7 +290,7 @@ class CreateFlightForm extends Component {
           {/* RIGHT PANEL --- SUBMIT/CANCEL, BOOKINGS, MULTIPLE DETAILS/NOTES */}
           <div style={createEventFormRightPanelStyle('flight')}>
             <div style={bookingNotesContainerStyle}>
-              <SubmitCancelForm flight handleSubmit={() => this.handleSubmit()} closeCreateForm={() => this.closeCreateFlight()} />
+              <SubmitCancelForm flight handleSubmit={() => this.handleSubmit()} closeForm={() => this.closeForm()} />
               {this.state.bookingDetails && (
                 <div>
                   <h4 style={{fontSize: '24px'}}>Booking Details</h4>

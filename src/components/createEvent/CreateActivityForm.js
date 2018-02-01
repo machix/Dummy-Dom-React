@@ -19,14 +19,16 @@ import { changingLoadSequence } from '../../apollo/changingLoadSequence'
 import { queryItinerary } from '../../apollo/itinerary'
 
 import { removeAllAttachments } from '../../helpers/cloudStorage'
-import countriesToCurrencyList from '../../helpers/countriesToCurrencyList'
+import { allCurrenciesList } from '../../helpers/countriesToCurrencyList'
 import newEventLoadSeqAssignment from '../../helpers/newEventLoadSeqAssignment'
 import latestTime from '../../helpers/latestTime'
 import moment from 'moment'
 import { constructGooglePlaceDataObj, constructLocationDetails } from '../../helpers/location'
-import { findDayOfWeek, findOpenAndCloseUnix } from '../../helpers/openingHoursValidation'
+import { validateOpeningHours } from '../../helpers/openingHoursValidation'
 import newEventTimelineValidation from '../../helpers/newEventTimelineValidation'
 import checkStartAndEndTime from '../../helpers/checkStartAndEndTime'
+
+import { validateIntervals } from '../../helpers/intervalValidationTesting'
 
 const defaultBackground = `${process.env.REACT_APP_CLOUD_PUBLIC_URI}activityDefaultBackground.jpg`
 
@@ -36,7 +38,7 @@ class CreateActivityForm extends Component {
     super(props)
     this.state = {
       ItineraryId: this.props.ItineraryId,
-      startDay: this.props.day, //int
+      startDay: this.props.day, // int
       endDay: this.props.day,
       googlePlaceData: {},
       locationAlias: '',
@@ -52,8 +54,6 @@ class CreateActivityForm extends Component {
       bookingConfirmation: '',
       attachments: [],
       backgroundImage: defaultBackground,
-      googlePlaceDetails: null,
-      // for google api response, not for db
       locationDetails: {
         address: null,
         telephone: null,
@@ -79,7 +79,7 @@ class CreateActivityForm extends Component {
     var bookingStatus = this.state.bookingConfirmation ? true : false
 
     var newActivity = {
-      ItineraryId: parseInt(this.state.ItineraryId),
+      ItineraryId: parseInt(this.state.ItineraryId, 10),
       locationAlias: this.state.locationAlias,
       startDay: this.state.startDay,
       endDay: this.state.endDay,
@@ -87,7 +87,7 @@ class CreateActivityForm extends Component {
       endTime: this.state.endTime,
       description: this.state.description,
       currency: this.state.currency,
-      cost: parseInt(this.state.cost),
+      cost: parseInt(this.state.cost, 10),
       bookingStatus: bookingStatus,
       bookedThrough: this.state.bookedThrough,
       bookingConfirmation: this.state.bookingConfirmation,
@@ -100,28 +100,37 @@ class CreateActivityForm extends Component {
       newActivity.googlePlaceData = this.state.googlePlaceData
     }
 
-    // VALIDATE START AND END TIMES
-    if (typeof (newActivity.startTime) !== 'number' || typeof (newActivity.endTime) !== 'number') {
-      console.log('time is missing')
-      return
+    // VALIDATE AND ASSIGN MISSING TIMINGS.
+    if (typeof (newActivity.startTime) !== 'number' && typeof (newActivity.endTime) !== 'number') {
+      newActivity = checkStartAndEndTime(this.props.events, newActivity, 'allDayEvent')
+      newActivity.allDayEvent = true
+    } else if (typeof (newActivity.startTime) !== 'number') {
+      newActivity = checkStartAndEndTime(this.props.events, newActivity, 'startTimeMissing')
+    } else if (typeof (newActivity.endTime) !== 'number') {
+      newActivity = checkStartAndEndTime(this.props.events, newActivity, 'endTimeMissing')
     }
 
-    // VALIDATE AND ASSIGN MISSING TIMINGS.
-    // if (typeof (newActivity.startTime) !== 'number' && typeof (newActivity.endTime) !== 'number') {
-    //   newActivity = checkStartAndEndTime(this.props.events, newActivity, 'allDayEvent')
-    // } else if (typeof (newActivity.startTime) !== 'number') {
-    //   newActivity = checkStartAndEndTime(this.props.events, newActivity, 'startTimeMissing')
-    // } else if (typeof (newActivity.startTime) !== 'number') {
-    //   newActivity = checkStartAndEndTime(this.props.events, newActivity, 'endTimeMissing')
+    // VALIDATE PLANNER TIMINGS
+    // var output = newEventTimelineValidation(this.props.events, 'Activity', newActivity)
+    // console.log('output', output)
+    //
+    // if (!output.isValid) {
+    //   window.alert(`time ${newActivity.startTime} --- ${newActivity.endTime} clashes with pre existing events.`)
+    //   console.log('ERROR ROWS', output.errorRows)
     // }
 
-    // VALIDATE PLANNER TIMINGS
-    var output = newEventTimelineValidation(this.props.events, 'Activity', newActivity)
-    console.log('output', output)
+    // REWRITE FUNCTION TO VALIDATE
+    var eventObj = {
+      startDay: newActivity.startDay,
+      endDay: newActivity.endDay,
+      startTime: newActivity.startTime,
+      endTime: newActivity.endTime
+    }
+    var isError = validateIntervals(this.props.events, eventObj)
+    console.log('isError', isError)
 
-    if (!output.isValid) {
-      window.alert(`time ${newActivity.startTime} --- ${newActivity.endTime} clashes with pre existing events.`)
-      console.log('ERROR ROWS', output.errorRows)
+    if (isError) {
+      window.alert('timing clashes detected')
     }
 
     var helperOutput = newEventLoadSeqAssignment(this.props.events, 'Activity', newActivity)
@@ -139,13 +148,12 @@ class CreateActivityForm extends Component {
         variables: { id: this.props.ItineraryId }
       }]
     })
-    // .then() //get created id
 
     this.resetState()
     this.props.toggleCreateEventType()
   }
 
-  closeCreateActivity () {
+  closeForm () {
     removeAllAttachments(this.state.attachments, this.apiToken)
     this.resetState()
     this.props.toggleCreateEventType()
@@ -167,7 +175,6 @@ class CreateActivityForm extends Component {
       bookingConfirmation: '',
       attachments: [],
       backgroundImage: defaultBackground,
-      googlePlaceDetails: null,
       locationDetails: {
         address: null,
         telephone: null,
@@ -180,8 +187,10 @@ class CreateActivityForm extends Component {
 
   selectLocation (place) {
     var googlePlaceData = constructGooglePlaceDataObj(place)
-    this.setState({googlePlaceData: googlePlaceData})
-    this.setState({googlePlaceDetails: place})
+    this.setState({googlePlaceData: googlePlaceData}, () => {
+      var locationDetails = constructLocationDetails(this.state.googlePlaceData, this.props.dates, this.state.startDay)
+      this.setState({locationDetails: locationDetails})
+    })
   }
 
   handleFileUpload (attachmentInfo) {
@@ -189,13 +198,17 @@ class CreateActivityForm extends Component {
   }
 
   removeUpload (index) {
+    var fileToRemove = this.state.attachments[index]
+    var fileNameToRemove = fileToRemove.fileName
+    // reset background img to default only if deleted file is background img file
+    if (this.state.backgroundImage.indexOf(fileNameToRemove) > -1) {
+      this.setState({backgroundImage: defaultBackground})
+    }
+
     var files = this.state.attachments
     var newFilesArr = (files.slice(0, index)).concat(files.slice(index + 1))
 
     this.setState({attachments: newFilesArr})
-
-    // need to not reset background image everytime a file is removed. backgroundImage is url, while attachments use filename.
-    this.setState({backgroundImage: defaultBackground})
   }
 
   setBackground (previewUrl) {
@@ -210,7 +223,7 @@ class CreateActivityForm extends Component {
       this.apiToken = obj.token
     })
 
-    var currencyList = countriesToCurrencyList(this.props.countries)
+    var currencyList = allCurrenciesList()
     this.setState({currencyList: currencyList})
     this.setState({currency: currencyList[0]})
 
@@ -221,66 +234,15 @@ class CreateActivityForm extends Component {
   }
 
   componentDidUpdate (prevProps, prevState) {
-    if (this.state.googlePlaceDetails) {
-      if (prevState.googlePlaceDetails !== this.state.googlePlaceDetails || prevState.startDay !== this.state.startDay) {
-        var locationDetails = constructLocationDetails(this.state.googlePlaceDetails, this.props.dates, this.state.startDay)
+    if (this.state.googlePlaceData) {
+      if (prevState.startDay !== this.state.startDay) {
+        var locationDetails = constructLocationDetails(this.state.googlePlaceData, this.props.dates, this.state.startDay)
         this.setState({locationDetails: locationDetails})
       }
-      // if location/day/time changed, validate opening hours
-      // must check start and end time is truthy. clearing the time means time = null
-      if (prevState.locationDetails !== this.state.locationDetails || prevState.startDay !== this.state.startDay || prevState.endDay !== this.state.endDay || (this.state.startTime && prevState.startTime !== this.state.startTime) || (this.state.endTime && prevState.endTime !== this.state.endTime)) {
-        this.validateOpeningHours()
-      }
-
-      // if time has been cleared out remove the warning text
-      if (!this.state.startTime && this.state.startTime !== prevState.startTime) {
-        this.setState({openingHoursValidation: null})
-      }
-      if (!this.state.endTime && this.state.endTime !== prevState.endTime) {
-        this.setState({openingHoursValidation: null})
-      }
-    }
-  }
-
-  validateOpeningHours () {
-    this.setState({openingHoursValidation: null})
-    var openingHoursText = this.state.locationDetails.openingHours
-
-    if (!openingHoursText || openingHoursText.indexOf('Open 24 hours') > -1) return
-
-    if (openingHoursText.indexOf('Closed') > -1) {
-      this.setState({openingHoursValidation: '1 -> Place is closed on selected day'})
-    } else {
-      var dayOfWeek = findDayOfWeek(this.props.dates, this.state.startDay)
-
-      var openingAndClosingArr = findOpenAndCloseUnix(dayOfWeek, this.state.googlePlaceDetails)
-      var openingUnix = openingAndClosingArr[0]
-      var closingUnix = openingAndClosingArr[1]
-
-      var startUnix = this.state.startTime
-      var endUnix = this.state.endTime
-
-      if (this.state.endDay === this.state.startDay) {
-        if (startUnix && startUnix < openingUnix) {
-          this.setState({openingHoursValidation: '2 -> Start time is before opening'})
-        }
-        if (endUnix && endUnix > closingUnix) {
-          this.setState({openingHoursValidation: '3 -> End time is after closing'})
-        }
-        if (startUnix && endUnix && startUnix > endUnix) {
-          this.setState({openingHoursValidation: '4 -> start time is after end time'})
-        }
-      } else if (this.state.endDay === this.state.startDay + 1) {
-        // day 2 unix is 1 full day + unix from midnight
-        endUnix += (24 * 60 * 60)
-        if (startUnix && startUnix < openingUnix) {
-          this.setState({openingHoursValidation: '2 -> Start time is before opening'})
-        }
-        if (endUnix && endUnix > closingUnix) {
-          this.setState({openingHoursValidation: '3 -> End time is after closing'})
-        }
-      } else if (this.state.endDay > this.state.startDay + 1) {
-        this.setState({openingHoursValidation: '5 -> Location is closed sometime between selected days'})
+      // if location/day/time changed, validate opening hours. if no error -> null, else str
+      if (prevState.locationDetails !== this.state.locationDetails || prevState.startDay !== this.state.startDay || prevState.endDay !== this.state.endDay || (prevState.startTime !== this.state.startTime) || (prevState.endTime !== this.state.endTime)) {
+        var openingHoursError = validateOpeningHours(this.state.googlePlaceData, this.props.dates, this.state.startDay, this.state.endDay, this.state.startTime, this.state.endTime)
+        this.setState({openingHoursValidation: openingHoursError})
       }
     }
   }
@@ -315,7 +277,7 @@ class CreateActivityForm extends Component {
           {/* RIGHT PANEL --- SUBMIT/CANCEL, BOOKINGNOTES */}
           <div style={createEventFormRightPanelStyle()}>
             <div style={bookingNotesContainerStyle}>
-              <SubmitCancelForm handleSubmit={() => this.handleSubmit()} closeCreateForm={() => this.closeCreateActivity()} />
+              <SubmitCancelForm handleSubmit={() => this.handleSubmit()} closeForm={() => this.closeForm()} />
               <h4 style={{fontSize: '24px'}}>Booking Details</h4>
               <BookingDetails handleChange={(e, field) => this.handleChange(e, field)} currency={this.state.currency} currencyList={this.state.currencyList} cost={this.state.cost} />
               <h4 style={{fontSize: '24px', marginTop: '50px'}}>

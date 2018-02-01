@@ -6,8 +6,9 @@ import { initializePlanner } from '../actions/plannerActions'
 import { queryItinerary } from '../apollo/itinerary'
 import { Image } from 'react-bootstrap'
 import { Scrollbars } from 'react-custom-scrollbars'
-import { primaryColor, plannerContainerStyle, plannerHeaderContainerStyle, itineraryNameStyle, itineraryDescStyle, plannerHeaderIconsContainerStyle, userIconsContainerStyle, userIconStyle, plannerIconStyle } from '../Styles/styles'
+import { primaryColor, plannerContainerStyle, plannerHeaderContainerStyle, plannerHeaderRightBarIconStyle, itineraryNameStyle, itineraryDescStyle, plannerHeaderIconsContainerStyle, userIconsContainerStyle, userIconStyle, plannerIconStyle, plannerHeaderRightBarIconContainerStyle } from '../Styles/styles'
 import DateBox from './Date'
+import PlannerHeaderRightBarIcons from './PlannerHeaderRightBarIcons'
 
 import checkForTimelineErrorsInPlanner from '../helpers/checkForTimelineErrorsInPlanner'
 
@@ -65,11 +66,7 @@ class Planner extends Component {
                   <Image src='https://media.licdn.com/media/AAEAAQAAAAAAAAqQAAAAJDhmZmZhOTg2LWE1YmYtNDQ2OC1iMzhiLWU0Y2RiZTBmNGRkMw.jpg' circle style={userIconStyle} />
                   <i className='material-icons' style={{...plannerIconStyle, ...{verticalAlign: 'middle', margin: '0 0 10px 10px'}}}>person_add</i>
                 </div>
-                <div style={{position: 'absolute', right: '0', bottom: '0'}}>
-                  <i className='material-icons' style={plannerIconStyle} key={1}>line_weight</i>
-                  <i className='material-icons' style={plannerIconStyle} key={2}>share</i>
-                  <i className='material-icons' style={plannerIconStyle} key={3}>map</i>
-                </div>
+                <PlannerHeaderRightBarIcons />
               </div>
             </div>
             {/* <h4 style={{lineHeight: '-0px'}}>{this.props.data.findItinerary.countries[0].name}</h4> */}

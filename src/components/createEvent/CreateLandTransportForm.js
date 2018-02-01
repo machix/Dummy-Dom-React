@@ -20,12 +20,14 @@ import { changingLoadSequence } from '../../apollo/changingLoadSequence'
 import { queryItinerary } from '../../apollo/itinerary'
 
 import { removeAllAttachments } from '../../helpers/cloudStorage'
-import countriesToCurrencyList from '../../helpers/countriesToCurrencyList'
+import { allCurrenciesList } from '../../helpers/countriesToCurrencyList'
 import newEventLoadSeqAssignment from '../../helpers/newEventLoadSeqAssignment'
 import latestTime from '../../helpers/latestTime'
 import moment from 'moment'
 import { constructGooglePlaceDataObj, constructLocationDetails } from '../../helpers/location'
 import newEventTimelineValidation from '../../helpers/newEventTimelineValidation'
+
+import { validateIntervals } from '../../helpers/intervalValidationTesting'
 
 const defaultBackground = `${process.env.REACT_APP_CLOUD_PUBLIC_URI}landTransportDefaultBackground.jpg`
 
@@ -52,9 +54,6 @@ class CreateLandTransportForm extends Component {
       bookingConfirmation: '',
       attachments: [],
       backgroundImage: defaultBackground,
-      // googlePlaceDetails is the unmodified google api response
-      departureGooglePlaceDetails: null,
-      arrivalGooglePlaceDetails: null,
       departureLocationDetails: {
         address: null,
         telephone: null,
@@ -84,7 +83,7 @@ class CreateLandTransportForm extends Component {
     var bookingStatus = this.state.bookingConfirmation ? true : false
 
     var newLandTransport = {
-      ItineraryId: parseInt(this.state.ItineraryId),
+      ItineraryId: parseInt(this.state.ItineraryId, 10),
       departureLocationAlias: this.state.departureLocationAlias,
       arrivalLocationAlias: this.state.arrivalLocationAlias,
       startDay: this.state.startDay,
@@ -92,7 +91,7 @@ class CreateLandTransportForm extends Component {
       startTime: this.state.startTime,
       endTime: this.state.endTime,
       currency: this.state.currency,
-      cost: parseInt(this.state.cost),
+      cost: parseInt(this.state.cost, 10),
       bookingStatus: bookingStatus,
       bookedThrough: this.state.bookedThrough,
       bookingConfirmation: this.state.bookingConfirmation,
@@ -103,23 +102,43 @@ class CreateLandTransportForm extends Component {
 
     if (this.state.departureGooglePlaceData.placeId) {
       newLandTransport.departureGooglePlaceData = this.state.departureGooglePlaceData
+    } else {
+      window.alert('location is missing')
+      return
     }
     if (this.state.arrivalGooglePlaceData.placeId) {
       newLandTransport.arrivalGooglePlaceData = this.state.arrivalGooglePlaceData
+    } else {
+      window.alert('location is missing')
+      return
     }
 
     // VALIDATE START AND END TIMES
     if (typeof (newLandTransport.startTime) !== 'number' || typeof (newLandTransport.endTime) !== 'number') {
-      console.log('time is missing')
+      window.alert('time is missing')
       return
     }
 
     // VALIDATE PLANNER TIMINGS
-    var output = newEventTimelineValidation(this.props.events, 'Transport', newLandTransport)
-    console.log('output', output)
-    if (!output.isValid) {
-      window.alert(`time ${newLandTransport.startTime} // ${newLandTransport.endTime} clashes with pre existing events.`)
-      console.log('ERROR ROWS', output.errorRows)
+    // var output = newEventTimelineValidation(this.props.events, 'Transport', newLandTransport)
+    // console.log('output', output)
+    // if (!output.isValid) {
+    //   window.alert(`time ${newLandTransport.startTime} // ${newLandTransport.endTime} clashes with pre existing events.`)
+    //   console.log('ERROR ROWS', output.errorRows)
+    // }
+
+    // REWRITTEN FUNCTION TO VALIDATE
+    var eventObj = {
+      startDay: newLandTransport.startDay,
+      endDay: newLandTransport.endDay,
+      startTime: newLandTransport.startTime,
+      endTime: newLandTransport.endTime
+    }
+    var isError = validateIntervals(this.props.events, eventObj)
+    console.log('isError', isError)
+
+    if (isError) {
+      window.alert('timing clashes detected')
     }
 
     // console.log('newLandTransport', newLandTransport)
@@ -144,7 +163,7 @@ class CreateLandTransportForm extends Component {
     this.props.toggleCreateEventType()
   }
 
-  closeCreateLandTransport () {
+  closeForm () {
     removeAllAttachments(this.state.attachments, this.apiToken)
     this.resetState()
     this.props.toggleCreateEventType()
@@ -166,9 +185,7 @@ class CreateLandTransportForm extends Component {
       bookedThrough: '',
       bookingConfirmation: '',
       attachments: [],
-      backgroundImage: defaultBackground,
-      departureGooglePlaceDetails: null,
-      arrivalGooglePlaceDetails: null
+      backgroundImage: defaultBackground
     })
     this.apiToken = null
   }
@@ -176,8 +193,16 @@ class CreateLandTransportForm extends Component {
   // need to select either departure or arrival
   selectLocation (place, type) {
     var googlePlaceData = constructGooglePlaceDataObj(place)
-    this.setState({[`${type}GooglePlaceData`]: googlePlaceData})
-    this.setState({[`${type}GooglePlaceDetails`]: place})
+    this.setState({[`${type}GooglePlaceData`]: googlePlaceData}, () => {
+      // construct location details for both departure/arrival, start/end day
+      if (type === 'departure') {
+        var locationDetails = constructLocationDetails(this.state.departureGooglePlaceData, this.props.dates, this.state.startDay)
+        this.setState({departureLocationDetails: locationDetails})
+      } else if (type === 'arrival') {
+        locationDetails = constructLocationDetails(this.state.arrivalGooglePlaceData, this.props.dates, this.state.endDay)
+        this.setState({arrivalLocationDetails: locationDetails})
+      }
+    })
   }
 
   handleFileUpload (attachmentInfo) {
@@ -185,11 +210,16 @@ class CreateLandTransportForm extends Component {
   }
 
   removeUpload (index) {
+    var fileToRemove = this.state.attachments[index]
+    var fileNameToRemove = fileToRemove.fileName
+    if (this.state.backgroundImage.indexOf(fileNameToRemove) > -1) {
+      this.setState({backgroundImage: defaultBackground})
+    }
+
     var files = this.state.attachments
     var newFilesArr = (files.slice(0, index)).concat(files.slice(index + 1))
 
     this.setState({attachments: newFilesArr})
-    this.setState({backgroundImage: defaultBackground})
   }
 
   setBackground (previewUrl) {
@@ -204,7 +234,7 @@ class CreateLandTransportForm extends Component {
       this.apiToken = obj.token
     })
 
-    var currencyList = countriesToCurrencyList(this.props.countries)
+    var currencyList = allCurrenciesList()
     this.setState({currencyList: currencyList})
     this.setState({currency: currencyList[0]})
 
@@ -223,19 +253,19 @@ class CreateLandTransportForm extends Component {
   }
 
   componentDidUpdate (prevProps, prevState) {
-    if (this.state.departureGooglePlaceDetails) {
-      if (prevState.departureGooglePlaceDetails !== this.state.departureGooglePlaceDetails || prevState.startDay !== this.state.startDay) {
-        var departureLocationDetails = constructLocationDetails(this.state.departureGooglePlaceDetails, this.props.dates, this.state.startDay)
+    if (this.state.departureGooglePlaceData) {
+      if (prevState.startDay !== this.state.startDay) {
+        var departureLocationDetails = constructLocationDetails(this.state.departureGooglePlaceData, this.props.dates, this.state.startDay)
         this.setState({departureLocationDetails: departureLocationDetails})
       }
     }
-    if (this.state.arrivalGooglePlaceDetails) {
-      if (prevState.arrivalGooglePlaceDetails !== this.state.arrivalGooglePlaceDetails || prevState.endDay !== this.state.endDay) {
-        var arrivalLocationDetails = constructLocationDetails(this.state.arrivalGooglePlaceDetails, this.props.dates, this.state.endDay)
+    if (this.state.arrivalGooglePlaceData) {
+      if (prevState.endDay !== this.state.endDay) {
+        var arrivalLocationDetails = constructLocationDetails(this.state.arrivalGooglePlaceData, this.props.dates, this.state.endDay)
         this.setState({arrivalLocationDetails: arrivalLocationDetails})
       }
     }
-    // if location/day/time changed, validate opening hours
+    // transport doesnt need opening hours validation
   }
 
   render () {
@@ -260,7 +290,7 @@ class CreateLandTransportForm extends Component {
           {/* RIGHT PANEL --- SUBMIT/CANCEL, BOOKINGNOTES */}
           <div style={createEventFormRightPanelStyle()}>
             <div style={bookingNotesContainerStyle}>
-              <SubmitCancelForm handleSubmit={() => this.handleSubmit()} closeCreateForm={() => this.closeCreateLandTransport()} />
+              <SubmitCancelForm handleSubmit={() => this.handleSubmit()} closeForm={() => this.closeForm()} />
               <h4 style={{fontSize: '24px'}}>Booking Details</h4>
               <BookingDetails handleChange={(e, field) => this.handleChange(e, field)} currency={this.state.currency} currencyList={this.state.currencyList} cost={this.state.cost} />
               <h4 style={{fontSize: '24px', marginTop: '50px'}}>

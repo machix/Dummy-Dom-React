@@ -19,12 +19,14 @@ import { changingLoadSequence } from '../../apollo/changingLoadSequence'
 import { queryItinerary } from '../../apollo/itinerary'
 
 import { retrieveToken, removeAllAttachments } from '../../helpers/cloudStorage'
-import countriesToCurrencyList from '../../helpers/countriesToCurrencyList'
+import { allCurrenciesList } from '../../helpers/countriesToCurrencyList'
 import newEventLoadSeqAssignment from '../../helpers/newEventLoadSeqAssignment'
 import latestTime from '../../helpers/latestTime'
 import moment from 'moment'
 import { constructGooglePlaceDataObj, constructLocationDetails } from '../../helpers/location'
 import newEventTimelineValidation from '../../helpers/newEventTimelineValidation'
+
+import { validateIntervals } from '../../helpers/intervalValidationTesting'
 
 const defaultBackground = `${process.env.REACT_APP_CLOUD_PUBLIC_URI}lodgingDefaultBackground.jpg`
 
@@ -49,7 +51,6 @@ class CreateLodgingForm extends Component {
       bookingConfirmation: '',
       attachments: [],
       backgroundImage: defaultBackground,
-      googlePlaceDetails: null,
       locationDetails: {
         address: null,
         telephone: null,
@@ -74,7 +75,7 @@ class CreateLodgingForm extends Component {
     var bookingStatus = this.state.bookingConfirmation ? true : false
 
     var newLodging = {
-      ItineraryId: parseInt(this.state.ItineraryId),
+      ItineraryId: parseInt(this.state.ItineraryId, 10),
       locationAlias: this.state.locationAlias,
       startDay: this.state.startDay,
       endDay: this.state.endDay,
@@ -82,7 +83,7 @@ class CreateLodgingForm extends Component {
       endTime: this.state.endTime,
       description: this.state.description,
       currency: this.state.currency,
-      cost: parseInt(this.state.cost),
+      cost: parseInt(this.state.cost, 10),
       bookingStatus: bookingStatus,
       bookedThrough: this.state.bookedThrough,
       bookingConfirmation: this.state.bookingConfirmation,
@@ -92,20 +93,37 @@ class CreateLodgingForm extends Component {
     }
     if (this.state.googlePlaceData.placeId) {
       newLodging.googlePlaceData = this.state.googlePlaceData
+    } else {
+      window.alert('location is missing!')
+      return
     }
 
     // VALIDATE START AND END TIMES
     if (typeof (newLodging.startTime) !== 'number' || typeof (newLodging.endTime) !== 'number') {
-      console.log('time is missing')
+      window.alert('time is missing')
       return
     }
 
     // VALIDATE PLANNER TIMINGS
-    var output = newEventTimelineValidation(this.props.events, 'Lodging', newLodging)
-    console.log('output', output)
-    if (!output.isValid) {
-      window.alert(`time ${newLodging.startTime} // ${newLodging.endTime} clashes with pre existing events.`)
-      console.log('ERROR ROWS', output.errorRows)
+    // var output = newEventTimelineValidation(this.props.events, 'Lodging', newLodging)
+    // console.log('output', output)
+    // if (!output.isValid) {
+    //   window.alert(`time ${newLodging.startTime} // ${newLodging.endTime} clashes with pre existing events.`)
+    //   console.log('ERROR ROWS', output.errorRows)
+    // }
+
+    // REWRITTEN FUNCTION TO VALIDATE
+    var eventObj = {
+      startDay: newLodging.startDay,
+      endDay: newLodging.endDay,
+      startTime: newLodging.startTime,
+      endTime: newLodging.endTime
+    }
+    var isError = validateIntervals(this.props.events, eventObj)
+    console.log('isError', isError)
+
+    if (isError) {
+      window.alert('timing clashes detected')
     }
 
     var helperOutput = newEventLoadSeqAssignment(this.props.events, 'Lodging', newLodging)
@@ -132,7 +150,7 @@ class CreateLodgingForm extends Component {
     this.props.toggleCreateEventType()
   }
 
-  closeCreateLodging () {
+  closeForm () {
     removeAllAttachments(this.state.attachments, this.apiToken)
     this.resetState()
     this.props.toggleCreateEventType()
@@ -153,16 +171,17 @@ class CreateLodgingForm extends Component {
       bookedThrough: '',
       bookingConfirmation: '',
       attachments: [],
-      backgroundImage: defaultBackground,
-      googlePlaceDetails: null
+      backgroundImage: defaultBackground
     })
     this.apiToken = null
   }
 
   selectLocation (place) {
     var googlePlaceData = constructGooglePlaceDataObj(place)
-    this.setState({googlePlaceData: googlePlaceData})
-    this.setState({googlePlaceDetails: place})
+    this.setState({googlePlaceData: googlePlaceData}, () => {
+      var locationDetails = constructLocationDetails(this.state.googlePlaceData, this.props.dates, this.state.startDay)
+      this.setState({locationDetails: locationDetails})
+    })
   }
 
   handleFileUpload (attachmentInfo) {
@@ -170,11 +189,16 @@ class CreateLodgingForm extends Component {
   }
 
   removeUpload (index) {
+    var fileToRemove = this.state.attachments[index]
+    var fileNameToRemove = fileToRemove.fileName
+    if (this.state.backgroundImage.indexOf(fileNameToRemove) > -1) {
+      this.setState({backgroundImage: defaultBackground})
+    }
+
     var files = this.state.attachments
     var newFilesArr = (files.slice(0, index)).concat(files.slice(index + 1))
 
     this.setState({attachments: newFilesArr})
-    this.setState({backgroundImage: defaultBackground})
   }
 
   setBackground (previewUrl) {
@@ -189,7 +213,7 @@ class CreateLodgingForm extends Component {
       this.apiToken = obj.token
     })
 
-    var currencyList = countriesToCurrencyList(this.props.countries)
+    var currencyList = allCurrenciesList()
     this.setState({currencyList: currencyList})
     this.setState({currency: currencyList[0]})
 
@@ -200,13 +224,13 @@ class CreateLodgingForm extends Component {
   }
 
   componentDidUpdate (prevProps, prevState) {
-    if (this.state.googlePlaceDetails) {
-      if (prevState.googlePlaceDetails !== this.state.googlePlaceDetails || prevState.startDay !== this.state.startDay) {
-        var locationDetails = constructLocationDetails(this.state.googlePlaceDetails, this.props.dates, this.state.startDay)
+    if (this.state.googlePlaceData) {
+      if (prevState.startDay !== this.state.startDay) {
+        var locationDetails = constructLocationDetails(this.state.googlePlaceData, this.props.dates, this.state.startDay)
         this.setState({locationDetails: locationDetails})
       }
     }
-    // if location/day/time changed, validate opening hours
+    // lodging doesnt need opening hours validation. google almost always gives null data
   }
 
   render () {
@@ -232,7 +256,7 @@ class CreateLodgingForm extends Component {
           {/* RIGHT PANEL --- SUBMIT/CANCEL, BOOKINGNOTES */}
           <div style={createEventFormRightPanelStyle()}>
             <div style={bookingNotesContainerStyle}>
-              <SubmitCancelForm handleSubmit={() => this.handleSubmit()} closeCreateForm={() => this.closeCreateLodging()} />
+              <SubmitCancelForm handleSubmit={() => this.handleSubmit()} closeForm={() => this.closeForm()} />
               <h4 style={{fontSize: '24px'}}>Booking Details</h4>
               <BookingDetails handleChange={(e, field) => this.handleChange(e, field)} currency={this.state.currency} currencyList={this.state.currencyList} cost={this.state.cost} />
               <h4 style={{fontSize: '24px', marginTop: '50px'}}>
